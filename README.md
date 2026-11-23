@@ -10,7 +10,7 @@ Built with **Anchor 1.2.1**, `spl-transfer-hook-interface` 0.9 and `spl-tlv-acco
 
 | | |
 |---|---|
-| Program ID (devnet) | [`AdBKiZ1PFPNB2XW3SDQFZWPnjRdkocDKHhjkPLioxumC`](https://explorer.solana.com/address/AdBKiZ1PFPNB2XW3SDQFZWPnjRdkocDKHhjkPLioxumC?cluster=devnet) |
+| Program ID | `AdBKiZ1PFPNB2XW3SDQFZWPnjRdkocDKHhjkPLioxumC` (devnet deploy in progress) |
 <!-- DEVNET_TXS -->
 
 ## How it works
