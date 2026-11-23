@@ -10,8 +10,9 @@ Built with **Anchor 1.2.1**, `spl-transfer-hook-interface` 0.9 and `spl-tlv-acco
 
 | | |
 |---|---|
-| Program ID | `AdBKiZ1PFPNB2XW3SDQFZWPnjRdkocDKHhjkPLioxumC` (devnet deploy in progress) |
-<!-- DEVNET_TXS -->
+| Program ID (devnet) | [`AdBKiZ1PFPNB2XW3SDQFZWPnjRdkocDKHhjkPLioxumC`](https://explorer.solana.com/address/AdBKiZ1PFPNB2XW3SDQFZWPnjRdkocDKHhjkPLioxumC?cluster=devnet) |
+| Example `initialize` + fund | [`5gD4Xj…A2nD2`](https://explorer.solana.com/tx/5gD4XjPHu4BmaTD9KMzJcGuG7yi8FUH73Qas5DF8ypf6eEFBuBW9GsyqKS63z7T6uQ9bxq2fQAZADLiPcURA2nD2?cluster=devnet) |
+| Example hooked transfer (60 of 100) | [`5gojXP…jYtr7`](https://explorer.solana.com/tx/5gojXPvEJbkvpHDEADyV9wEd4yZFLmhXww4R8cEfHQUv6g3dct5sMDdc5cpicNx5T4ke69fYoNQvdcoEoEjfYtr7?cluster=devnet) (26,960 CU) |
 
 ## How it works
 
@@ -82,7 +83,7 @@ anchor build
 cargo test
 ```
 
-Devnet demo: creates a hooked mint with a limit of 100 per 60 s, funds a fresh wallet, sends 60 (accepted), then tries 50 more (rejected by the hook in preflight, so no fee is paid).
+Devnet demo: creates a hooked mint with a limit of 100 per 60 s, funds a fresh wallet, sends 60 (accepted), then tries 50 more (rejected by the hook in preflight, so no fee is paid). On devnet the accepted transfer cost 26,960 CU for the whole transaction.
 
 ```bash
 cd client && npm install && npm run demo
