@@ -1,0 +1,38 @@
+[package]
+name = "transfer-limit-hook"
+version = "0.1.0"
+description = "Token-2022 transfer hook that caps how much each wallet can send per rolling time window"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "transfer_limit_hook"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = "1.2.1"
+anchor-spl = "1.2.1"
+spl-discriminator = "0.4.1"
+spl-tlv-account-resolution = "0.9.0"
+spl-transfer-hook-interface = "0.9.0"
+
+[dev-dependencies]
+litesvm = "0.18.1"
+solana-keypair = "3.1.2"
+solana-message = "4.6.0"
+solana-signer = "3.0.1"
+solana-transaction = "4.3.0"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
