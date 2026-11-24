@@ -212,8 +212,11 @@ fn setup() -> Env {
     clock.unix_timestamp = START;
     svm.set_sysvar(&clock);
 
-    let (issuer, alice, bob) = (user(&mut svm), user(&mut svm), user(&mut svm));
-    let mint_kp = Keypair::new();
+    // Fixed keys: the same PDAs and bumps, so the same compute units, every run.
+    let [issuer, alice, bob, mint_kp] = [1, 2, 3, 4].map(|n| Keypair::new_from_array([n; 32]));
+    for kp in [&issuer, &alice, &bob] {
+        svm.airdrop(&kp.pubkey(), 10_000_000_000).unwrap();
+    }
     let mint = mint_kp.pubkey();
     let space =
         ExtensionType::try_calculate_account_len::<Mint>(&[ExtensionType::TransferHook]).unwrap();
@@ -580,51 +583,58 @@ fn only_the_authority_can_change_the_limit_and_it_applies_at_once() {
     transfer(&mut env, &alice, &bob, 10 * UNIT).unwrap();
 }
 
-/// `cargo test cu_report -- --nocapture` prints what the hook adds to a transfer.
+/// Sends one instruction that must succeed; returns the transaction's compute units.
+fn compute_units(svm: &mut LiteSVM, ix: Instruction, signer: &Keypair) -> u64 {
+    let msg = Message::new_with_blockhash(&[ix], Some(&signer.pubkey()), &svm.latest_blockhash());
+    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[signer]).unwrap();
+    let meta = svm
+        .send_transaction(tx)
+        .unwrap_or_else(|e| panic!("{:?}\n{}", e.err, e.meta.logs.join("\n")));
+    // Per-program breakdown: shows the hook's own share of a transfer.
+    for line in meta.logs.iter().filter(|l| l.contains("consumed")) {
+        println!("  {line}");
+    }
+    svm.expire_blockhash();
+    meta.compute_units_consumed
+}
+
+/// Writes `target/cu-report.json` for the compute-unit check in CI.
+fn write_cu_report(rows: &[(String, u64)]) {
+    let body: Vec<String> = rows
+        .iter()
+        .map(|(n, cu)| format!("  \"{n}\": {cu}"))
+        .collect();
+    let json = format!("{{\n{}\n}}\n", body.join(",\n"));
+    let path = concat!(env!("CARGO_TARGET_TMPDIR"), "/../cu-report.json");
+    std::fs::write(path, &json).unwrap();
+    println!("{json}");
+}
+
+/// `cargo test cu_report -- --nocapture` prints whole-transaction compute units.
 #[test]
 fn cu_report() {
     let mut env = setup();
-    let (alice, issuer, bob) = (
-        env.alice.insecure_clone(),
-        env.issuer.insecure_clone(),
-        env.bob.pubkey(),
-    );
-    let cu = |svm: &mut LiteSVM, ix: Instruction, signer: &Keypair| {
-        let msg =
-            Message::new_with_blockhash(&[ix], Some(&signer.pubkey()), &svm.latest_blockhash());
-        let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[signer]).unwrap();
-        let meta = svm.send_transaction(tx).unwrap();
-        for l in meta.logs.iter().filter(|l| l.contains("consumed")) {
-            println!("  {l}");
-        }
-        let used = meta.compute_units_consumed;
-        svm.expire_blockhash();
-        used
-    };
-    let mint = env.mint;
-    let limited = cu(
-        &mut env.svm,
-        ix_transfer(
-            &mint,
-            &alice.pubkey(),
-            &alice.pubkey(),
-            &bob,
-            UNIT,
-            usage_pda(&mint, &alice.pubkey()),
+    let (alice, issuer) = (env.alice.insecure_clone(), env.issuer.insecure_clone());
+    let (a, i, bob, mint) = (alice.pubkey(), issuer.pubkey(), env.bob.pubkey(), env.mint);
+    let steps = [
+        (
+            "transfer (limited wallet)",
+            ix_transfer(&mint, &a, &a, &bob, UNIT, usage_pda(&mint, &a)),
+            &alice,
         ),
-        &alice,
-    );
-    let exempt = cu(
-        &mut env.svm,
-        ix_transfer(
-            &mint,
-            &issuer.pubkey(),
-            &issuer.pubkey(),
-            &bob,
-            UNIT,
-            usage_pda(&mint, &issuer.pubkey()),
+        (
+            "transfer (exempt issuer)",
+            ix_transfer(&mint, &i, &i, &bob, UNIT, usage_pda(&mint, &i)),
+            &issuer,
         ),
-        &issuer,
-    );
-    println!("\nhooked transfer_checked, whole tx: limited wallet {limited} CU, issuer (exempt) {exempt} CU");
+        ("open_usage", ix_open_usage(&i, &mint, &bob), &issuer),
+        (
+            "set_limit",
+            ix_set_limit(&i, &mint, 2 * LIMIT, DAY),
+            &issuer,
+        ),
+    ];
+    let rows =
+        steps.map(|(name, ix, signer)| (name.to_string(), compute_units(&mut env.svm, ix, signer)));
+    write_cu_report(&rows);
 }
