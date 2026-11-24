@@ -1,11 +1,10 @@
+import { TOKEN_2022_PROGRAM_ADDRESS } from "@solana-program/token-2022";
 import { describe, expect, test } from "vitest";
+import { TRANSFER_LIMIT_HOOK_PROGRAM_ADDRESS as HOOK } from "../src/generated/index.js";
 import { formatAmount, parseAmount } from "../src/lib/amount.js";
 import { clusterOf } from "../src/lib/chain.js";
 import { explain } from "../src/lib/errors.js";
 import { allowance, formatDuration, splitWindow, UNITS } from "../src/lib/window.js";
-
-const HOOK = "AdBKiZ1PFPNB2XW3SDQFZWPnjRdkocDKHhjkPLioxumC";
-const TOKEN = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
 describe("allowance mirrors the program's window rule", () => {
   const rule = { limit: 100n, windowSecs: 60n };
@@ -61,7 +60,7 @@ test("splitting a window into a unit is exact", () => {
 
 describe("explain", () => {
   test("finds the hook's error under Token-2022's copy of the code", () => {
-    const f = explain([`Program ${HOOK} failed: custom program error: 0x1770`, `Program ${TOKEN} failed: custom program error: 0x1770`], {});
+    const f = explain([`Program ${HOOK} failed: custom program error: 0x1770`, `Program ${TOKEN_2022_PROGRAM_ADDRESS} failed: custom program error: 0x1770`], {});
     expect(f.hookCode).toBe(6000);
     expect(f.message).toMatch(/over the wallet's limit/);
   });
@@ -73,7 +72,7 @@ describe("explain", () => {
     expect(explain([`Program log: Program ${HOOK} failed: custom program error: 0x1770`], "x").hookCode).toBeNull();
   });
   test("token balance and SOL problems", () => {
-    expect(explain([`Program ${TOKEN} failed: custom program error: 0x1`], {}).message).toMatch(/enough tokens/);
+    expect(explain([`Program ${TOKEN_2022_PROGRAM_ADDRESS} failed: custom program error: 0x1`], {}).message).toMatch(/enough tokens/);
     expect(explain([], "AccountNotFound").message).toMatch(/more SOL/);
     expect(explain([], { InstructionError: [0, { Custom: 7n }] }).message).toContain('"Custom":"7"');
   });
