@@ -83,6 +83,8 @@ anchor build
 cargo test
 ```
 
+On each pull request, [solana-cu-guard](https://github.com/malharc373/solana-cu-guard) runs the `cu_report` test on the base commit and on the change, and fails the check if any instruction costs more.
+
 Devnet demo: creates a hooked mint with a limit of 100 per 60 s, funds a fresh wallet, sends 60 (accepted), then tries 50 more (rejected by the hook in preflight, so no fee is paid). On devnet the accepted transfer cost 26,960 CU for the whole transaction.
 
 ```bash
