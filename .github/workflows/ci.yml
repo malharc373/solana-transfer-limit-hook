@@ -57,3 +57,68 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm run typecheck
+
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: The app's generated client matches the client's
+        run: diff -r ../client/src/generated src/generated
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Development wallets are not in the built app
+        run: "! grep -rl 'Dev issuer' dist"
+
+  # The app's own functions, against a local validator with the real program.
+  app-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Cache cargo and Solana tools
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cache/solana
+            ~/.local/share/solana
+            target
+          key: ${{ runner.os }}-${{ env.SOLANA_VERSION }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install Solana CLI
+        run: |
+          [ -x "$HOME/.local/share/solana/install/active_release/bin/solana" ] || \
+            sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - run: cargo build-sbf
+      - run: npm ci
+        working-directory: app
+
+      - name: Start a validator
+        run: |
+          solana-test-validator --reset --quiet --ledger "$RUNNER_TEMP/ledger" \
+            --bpf-program AdBKiZ1PFPNB2XW3SDQFZWPnjRdkocDKHhjkPLioxumC target/deploy/transfer_limit_hook.so \
+            > "$RUNNER_TEMP/validator.log" 2>&1 &
+          for _ in $(seq 60); do
+            curl -sf -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
+              http://127.0.0.1:8899 | grep -q '"ok"' && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/validator.log"; exit 1
+
+      - run: npm test
+        working-directory: app
+        env:
+          E2E_RPC: http://127.0.0.1:8899

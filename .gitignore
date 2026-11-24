@@ -12,3 +12,6 @@ test-ledger
 id.json
 .env
 .env.*
+
+# built app
+app/dist
